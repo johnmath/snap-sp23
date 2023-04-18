@@ -2,7 +2,6 @@ import pandas as pd
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
-from torchvision.models import resnet18
 
 import propinf.data.ModifiedDatasets as data
 from propinf.training import training_utils, models
@@ -39,15 +38,12 @@ class AttackUtil:
         self._allow_target_subsampling = False
         self._restrict_sampling = False
         self._pois_rs = None
-        self._allow_custom_freq = False
-        self._label_freq = None
         self._model_metrics = None
 
         # Model + Data Hyperparams
         self._layer_sizes = None
         self._num_classes = None
         self._epochs = None
-        self._alterdata_list = None
         self._optim_init = None
         self._optim_kwargs = None
         self._criterion = None
@@ -68,10 +64,8 @@ class AttackUtil:
         target_attributes=[" Black"],
         sub_categories=["occupation"],
         sub_attributes=[" Sales"],
-        allow_custom_freq=False,
         subproperty_sampling=False,
         restrict_sampling=False,
-        label_freq=0.5,
         poison_class=1,
         poison_percent=0.03,
         k=None,
@@ -94,8 +88,6 @@ class AttackUtil:
         self._sub_attributes = sub_attributes
         self._subproperty_sampling = subproperty_sampling
         self._restrict_sampling = restrict_sampling
-        self._allow_custom_freq = allow_custom_freq
-        self._label_freq = label_freq
         self._poison_class = poison_class
         self._poison_percent = poison_percent
         self._k = k
@@ -114,10 +106,8 @@ class AttackUtil:
     def set_shadow_model_hyperparameters(
         self,
         layer_sizes=[64],
-        vision_model_arch=resnet18,
         num_classes=2,
         epochs=10,
-        alterdata_list=[],
         optim_init=optim.Adam,
         optim_kwargs={"lr": 0.03, "weight_decay": 0.0001},
         criterion=nn.CrossEntropyLoss(),
@@ -135,10 +125,8 @@ class AttackUtil:
     ):
 
         self._layer_sizes = layer_sizes
-        self._vision_model_arch = vision_model_arch
         self._num_classes = num_classes
         self._epochs = epochs
-        self._alterdata_list = alterdata_list
         self._optim_init = optim_init
         self._optim_kwargs = optim_kwargs
         self._criterion = criterion
@@ -153,10 +141,7 @@ class AttackUtil:
         self._batch_size = batch_size
         self._num_workers = num_workers
         self._persistent_workers = persistent_workers
-
-        assert (
-            len(self._alterdata_list) >= self._epochs
-        ), "alterdata_list needs to be >= total epochs"
+        self._activation_val = {}
 
     def generate_datasets(self):
         """Generate all datasets required for the property inference attack"""
@@ -191,16 +176,15 @@ class AttackUtil:
             poison_percent=self._poison_percent,
             subproperty_sampling=self._subproperty_sampling,
             restrict_sampling=self._restrict_sampling,
-            label_frequency=self._label_freq,
-            allow_custom_freq=self._allow_custom_freq,
             verbose=self._verbose,
         )
 
         if self._t0 == 0:
             self._Dtest = pd.concat([self._Dp, self._Dtest])
 
+        #Changes-Harsh
         # Converting to poisoned class
-        self._Dtest["class"] = self._poison_class
+        # self._Dtest["class"] = self._poison_class
 
         if self._k is None:
             self._k = int(self._poison_percent * len(self._D0_mo))
@@ -279,8 +263,7 @@ class AttackUtil:
                 )
 
                 if (
-                    int(self._poison_percent * self._ntarget_samples)
-                    <= self._Dp_OH.shape[0]
+                    int(self._poison_percent * self._ntarget_samples) <= self._Dp_OH.shape[0]
                 ):
 
                     poisoned_D0_MO = pd.concat(
@@ -333,15 +316,7 @@ class AttackUtil:
                         ]
                     )
 
-            owner_loaders["train-clean"] = training_utils.dataframe_to_dataloader(
-                clean_D0_MO,
-                batch_size=self._batch_size,
-                using_ce_loss=self._using_ce_loss,
-                num_workers=self._num_workers,
-                persistent_workers=self._persistent_workers,
-            )
-
-            owner_loaders["train-poison"] = training_utils.dataframe_to_dataloader(
+            owner_loaders["train"] = training_utils.dataframe_to_dataloader(
                 poisoned_D0_MO,
                 batch_size=self._batch_size,
                 using_ce_loss=self._using_ce_loss,
@@ -370,7 +345,7 @@ class AttackUtil:
             self._poisoned_target_models[i], _ = training_utils.fit(
                 dataloaders=owner_loaders,
                 model=target_model,
-                alterdata_list=self._alterdata_list,
+                # alterdata_list=self._alterdata_list,
                 epochs=self._epochs,
                 optim_init=self._optim_init,
                 optim_kwargs=self._optim_kwargs,
@@ -449,15 +424,7 @@ class AttackUtil:
                         ]
                     )
 
-            owner_loaders["train-clean"] = training_utils.dataframe_to_dataloader(
-                clean_D1_MO,
-                batch_size=self._batch_size,
-                using_ce_loss=self._using_ce_loss,
-                num_workers=self._num_workers,
-                persistent_workers=self._persistent_workers,
-            )
-
-            owner_loaders["train-poison"] = training_utils.dataframe_to_dataloader(
+            owner_loaders["train"] = training_utils.dataframe_to_dataloader(
                 poisoned_D1_MO,
                 batch_size=self._batch_size,
                 using_ce_loss=self._using_ce_loss,
@@ -486,7 +453,7 @@ class AttackUtil:
             self._poisoned_target_models[i], _ = training_utils.fit(
                 dataloaders=owner_loaders,
                 model=target_model,
-                alterdata_list=self._alterdata_list,
+                # alterdata_list=self._alterdata_list,
                 epochs=self._epochs,
                 optim_init=self._optim_init,
                 optim_kwargs=self._optim_kwargs,
@@ -499,47 +466,6 @@ class AttackUtil:
                 train_only=True,
             )
 
-        # Code to compute Metrics
-        if need_metrics == True:
-            avg_acc = 0.0
-            avg_prec = 0.0
-            avg_recall = 0.0
-            avg_f1 = 0.0
-            # y_true = df_cv['class'].to_numpy()
-            total_models = 2 * self._num_target_models
-
-            # Dataset Cross Validation One Hot
-            _, _, Dcv_OH = data.all_dfs_to_one_hot(
-                [self.df_train, self.df_test, df_cv],
-                cat_columns=self.cat_columns,
-                class_label="class",
-            )
-
-            for poisoned_target_model in self._poisoned_target_models:
-                Dcv_loader = training_utils.dataframe_to_dataloader(
-                    Dcv_OH,
-                    batch_size=Dcv_OH.shape[0],
-                    num_workers=self._num_workers,
-                    using_ce_loss=self._using_ce_loss,
-                )
-
-                y_pred, y_true = training_utils.get_prediction(
-                    Dcv_loader,
-                    poisoned_target_model,
-                    one_hot=False,
-                    ground_truth=True,
-                    device=self._device,
-                )
-
-                # acc, prec, recall  = training_utils.get_metricsv2(poisoned_target_model, self._Dcv_OH)
-                acc, prec, recall, f1 = training_utils.get_metrics(y_true, y_pred)
-
-                avg_acc = avg_acc + acc / total_models
-                avg_prec = avg_prec + prec / total_models
-                avg_recall = avg_recall + recall / total_models
-                avg_f1 = avg_f1 + f1 / total_models
-
-            return avg_acc, avg_prec, avg_recall, avg_f1
 
     def property_inference_categorical(
         self,
@@ -659,15 +585,7 @@ class AttackUtil:
                         ]
                     )
 
-            D0_loaders["train-clean"] = training_utils.dataframe_to_dataloader(
-                clean_D0,
-                batch_size=self._batch_size,
-                using_ce_loss=self._using_ce_loss,
-                num_workers=self._num_workers,
-                persistent_workers=self._persistent_workers,
-            )
-
-            D0_loaders["train-poison"] = training_utils.dataframe_to_dataloader(
+            D0_loaders["train"] = training_utils.dataframe_to_dataloader(
                 poisoned_D0,
                 batch_size=self._batch_size,
                 using_ce_loss=self._using_ce_loss,
@@ -675,15 +593,7 @@ class AttackUtil:
                 persistent_workers=self._persistent_workers,
             )
 
-            D1_loaders["train-clean"] = training_utils.dataframe_to_dataloader(
-                clean_D1,
-                batch_size=self._batch_size,
-                using_ce_loss=self._using_ce_loss,
-                num_workers=self._num_workers,
-                persistent_workers=self._persistent_workers,
-            )
-
-            D1_loaders["train-poison"] = training_utils.dataframe_to_dataloader(
+            D1_loaders["train"] = training_utils.dataframe_to_dataloader(
                 poisoned_D1,
                 batch_size=self._batch_size,
                 using_ce_loss=self._using_ce_loss,
@@ -818,7 +728,6 @@ class AttackUtil:
             M0_trained, _ = training_utils.fit(
                 dataloaders=D0_loaders,
                 model=M0_model,
-                alterdata_list=self._alterdata_list,
                 epochs=self._epochs,
                 optim_init=self._optim_init,
                 optim_kwargs=self._optim_kwargs,
@@ -834,7 +743,6 @@ class AttackUtil:
             M1_trained, _ = training_utils.fit(
                 dataloaders=D1_loaders,
                 model=M1_model,
-                alterdata_list=self._alterdata_list,
                 epochs=self._epochs,
                 optim_init=self._optim_init,
                 optim_kwargs=self._optim_kwargs,
@@ -847,22 +755,24 @@ class AttackUtil:
                 train_only=True,
             )
 
-            out_M0_temp, _ = training_utils.get_logits_torch(
+            out_M0_temp = training_utils.get_logits_torch(
                 Dtest_OH_loader,
                 M0_trained,
                 device=self._device,
                 middle_measure=self._middle,
                 variance_adjustment=self._variance_adjustment,
+                label = self._poison_class
             )
 
             out_M0 = np.append(out_M0, out_M0_temp)
 
-            out_M1_temp, _ = training_utils.get_logits_torch(
+            out_M1_temp = training_utils.get_logits_torch(
                 Dtest_OH_loader,
                 M1_trained,
                 device=self._device,
                 middle_measure=self._middle,
                 variance_adjustment=self._variance_adjustment,
+                label = self._poison_class
             )
             out_M1 = np.append(out_M1, out_M1_temp)
 
@@ -884,17 +794,6 @@ class AttackUtil:
         # Query the target model and determine
         correct_trials = 0
 
-        # --------Chernoff number of queries computation------------------
-        # nipt = max(1-norm(np.median(out_M0), np.std(out_M0)).cdf(thresh),
-        #                    norm(np.median(out_M1),np.std(out_M1)).cdf(thresh))
-        # delta = 1/(2*nipt) - 1
-        # chernoff_q = -(2+delta)*np.log(0.001)/((delta**2)*nipt) # eps = 0.001
-        # chernoff_q = np.ceil(chernoff_q).astype(int)
-        # self._num_queries = min(self._num_queries, len(self._Dtest_OH), chernoff_q)
-        # print(f"Chernoff bound queries: {chernoff_q}")
-
-        #         self._num_queries = min(self._num_queries, len(self._Dtest_OH))
-
         if self._mini_verbose:
             print(
                 "-" * 10,
@@ -912,7 +811,7 @@ class AttackUtil:
                 if query_selection.lower() == "random":
                     Dtest_OH_sample_loader = training_utils.dataframe_to_dataloader(
                         self._Dtest_OH.sample(
-                            n=self._num_queries, replace=oversample_flag
+                            n=self._num_queries, replace=oversample_flag, random_state = i+1
                         ),
                         batch_size=self._batch_size,
                         num_workers=self._num_workers,
@@ -921,12 +820,13 @@ class AttackUtil:
                 else:
                     print("Incorrect Query selection type")
 
-                out_target, _ = training_utils.get_logits_torch(
+                out_target = training_utils.get_logits_torch(
                     Dtest_OH_sample_loader,
                     poisoned_target_model,
                     device=self._device,
                     middle_measure=self._middle,
                     variance_adjustment=self._variance_adjustment,
+                    label = self._poison_class
                 )
 
                 if self._verbose:

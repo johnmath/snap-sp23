@@ -82,12 +82,12 @@ def get_metrics(y_true, y_pred):
         Accuracy, Precision, Recall, F1 score
     """
     acc = metrics.accuracy_score(y_true, y_pred)
-    precision = metrics.precision_score(y_true, y_pred)
-    recall = metrics.recall_score(y_true, y_pred)
-    f1 = metrics.f1_score(y_true, y_pred)
+    # precision = metrics.precision_score(y_true, y_pred)
+    # recall = metrics.recall_score(y_true, y_pred)
+    # f1 = metrics.f1_score(y_true, y_pred)
 
-    return acc, precision, recall, f1
-
+    # return acc, precision, recall, f1
+    return acc
 
 def get_prediction(test_loader, model, one_hot=False, ground_truth=False, device="cpu"):
     """Takes in a test dataloader + a trained model and returns a numpy array of predictions
@@ -142,9 +142,8 @@ def get_prediction(test_loader, model, one_hot=False, ground_truth=False, device
 
     return y_pred
 
-
 def get_logits_torch(
-    test_loader, model, device="cpu", middle_measure="mean", variance_adjustment=1
+    test_loader, model, device="cpu", middle_measure="mean", variance_adjustment=1, max_conf = 1 - 1e-16, min_conf = 0 + 1e-16 , label = None
 ):
     """Takes in a test dataloader + a trained model and returns the scaled logit values
 
@@ -174,10 +173,8 @@ def get_logits_torch(
 
     n_samples = len(test_loader.dataset)
     logit_arr = np.zeros((n_samples, 1))
-
-    max_conf = 1 - 1e-16
-    min_conf = 0 + 1e-16
-
+    # activation_dict = {}
+        
     model = model.to(device)
 
     y_prob = torch.Tensor([])
@@ -212,7 +209,9 @@ def get_logits_torch(
     possible_labels = len(y_prob[0])
     for sample_idx, sample in enumerate(zip(y_prob, y_test)):
 
-        conf, label = sample
+        conf, og_label = sample
+        if(label == None):
+            label = og_label
         selector = [True for _ in range(possible_labels)]
         selector[label] = False
 
@@ -238,31 +237,11 @@ def get_logits_torch(
         logit_arr_filtered < middle + variance_adjustment * logit_arr_filtered.std()
     ]  # Remove observations above max range
 
-    return logit_arr_filtered, logit_arr
-
-
-def gaussian_KL_divergence(p, q, middle="mean"):
-    if middle == "mean":
-        mu1 = p.mean()
-        mu2 = q.mean()
-    elif middle == "median":
-        mu1 = np.median(p)
-        mu2 = np.median(q)
-
-    sig1 = p.var()
-    sig2 = q.var()
-
-    first_term = np.log((np.sqrt(sig1) / np.sqrt(sig2)))
-
-    second_term = (sig1 + (mu1 - mu2) ** 2) / (2 * sig2)
-
-    return first_term + second_term - 0.5
-
+    return logit_arr_filtered
 
 def fit(
     dataloaders,
     model,
-    alterdata_list,
     epochs=100,
     optim_init=optim.Adam,
     optim_kwargs={"lr": 0.03, "weight_decay": 0.0001},
@@ -338,16 +317,7 @@ def fit(
             running_test_loss = 0
             running_test_acc = 0
 
-            data_switch_flag = alterdata_list[epoch - 1]
-
-            if data_switch_flag == 0:
-                phase = "train-clean"
-            else:
-                phase = "train-poison"
-
-            # print(phase)
-
-            for (inputs, labels) in dataloaders[phase]:
+            for (inputs, labels) in dataloaders['train']:
                 optimizer.zero_grad()
                 inputs = inputs.to(device)
                 labels = labels.to(device)
@@ -357,31 +327,8 @@ def fit(
                 optimizer.step()
                 running_train_loss += loss.item() * inputs.size(0)
 
-            #                 for phase in phases:
-            #                     if phase == "train":
-            #                         model.train()
-            #                         for (inputs, labels) in dataloaders[phase]:
-            #                             optimizer.zero_grad()
-            #                             inputs = inputs.to(device)
-            #                             labels = labels.to(device)
-            #                             outputs = model.forward(inputs)
-            #                             loss = criterion(outputs, labels)
-            #                             loss.backward()
-            #                             optimizer.step()
-            #                             running_train_loss += loss.item() * inputs.size(0)
 
-            #                     elif phase == "test":
-            #                         model.eval()
-            #                         with torch.no_grad():
-            #                             for (inputs, labels) in dataloaders[phase]:
-            #                                 inputs = inputs.to(device)
-            #                                 labels = labels.to(device)
-            #                                 outputs = model.forward(inputs)
-            #                                 loss = criterion(outputs, labels)
-            #                                 running_test_loss += loss.item() * inputs.size(0)
-            #                                 running_test_acc += sum(torch.max(outputs, dim=1)[1] == labels).item()
-
-            train_error.append(running_train_loss / len(dataloaders[phase].dataset))
+            train_error.append(running_train_loss / len(dataloaders['train'].dataset))
 
             if len(train_error) > 1 and early_stopping:
                 if abs(train_error[-1] - train_error[-2]) < tol:
