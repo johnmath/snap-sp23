@@ -53,7 +53,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '-fsub',
         '--flagsub',
-        help='set to True if want to use the optimized attack for large properties',
+        help='set to True if want to use the optimized attack for large propertie',
         type=bool,
         default= False
     )
