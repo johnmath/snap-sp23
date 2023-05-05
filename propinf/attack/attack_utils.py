@@ -2,17 +2,18 @@ import pandas as pd
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
-
+from tqdm import tqdm
 import propinf.data.ModifiedDatasets as data
 from propinf.training import training_utils, models
 
 
 class AttackUtil:
-    def __init__(self, target_model_layers, df_train, df_test, cat_columns=None):
-        message = """Before attempting to run the property inference attack, set hyperparameters using
-        1. set_attack_hyperparameters()
-        2. set_model_hyperparameters()"""
-        print(message)
+    def __init__(self, target_model_layers, df_train, df_test, cat_columns=None, verbose=True):
+        if verbose:
+            message = """Before attempting to run the property inference attack, set hyperparameters using
+            1. set_attack_hyperparameters()
+            2. set_model_hyperparameters()"""
+            print(message)
         self.target_model_layers = target_model_layers
         self.df_train = df_train
         self.df_test = df_test
@@ -291,7 +292,7 @@ class AttackUtil:
 
         """Trains half the target models on t0 fraction"""
         # for i in tqdm(range(self._num_target_models), desc = "Training target models with frac t0"):
-        for i in range(self._num_target_models):
+        for i in tqdm(range(self._num_target_models), desc=f"Training Target Models with {self._poison_percent*100:.2f}% poisoning"):
 
             if self._allow_target_subsampling == True:
                 if len(self._Dp) == 0:
@@ -613,7 +614,7 @@ class AttackUtil:
         out_M0 = np.array([])
         out_M1 = np.array([])
 
-        for i in range(num_shadow_models):
+        for i in tqdm(range(num_shadow_models), desc=f"Training {num_shadow_models} Shadow Models with {self._poison_percent*100:.2f}% Poisoning"):
 
             if self._mini_verbose:
                 print("-" * 10, f"\nModels {i+1}")
@@ -805,7 +806,7 @@ class AttackUtil:
             oversample_flag = True
             print("Oversampling test queries")
 
-        for i, poisoned_target_model in enumerate(self._poisoned_target_models):
+        for i, poisoned_target_model in enumerate(tqdm(self._poisoned_target_models, desc=f"Querying Models and Running Distinguishing Test")):
             for query_trial in range(query_trials):
 
                 if query_selection.lower() == "random":
