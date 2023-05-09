@@ -121,6 +121,14 @@ if __name__ == '__main__':
         default='[(marital-status, Never-married)]'
     )
     
+    parser.add_argument(
+        '-nt',
+        '--ntrials',
+        help='number of trials',
+        type=int,
+        default=1
+    )
+    
     arguments = vars(parser.parse_args())
     arguments["poisonlist"] = string_to_float_list(arguments["poisonlist"])
     arguments["targetproperties"] = string_to_tuple_list(arguments["targetproperties"])
@@ -148,8 +156,8 @@ if __name__ == '__main__':
     t0 = arguments["t0frac"]
     t1 = arguments["t1frac"]
 
-    n_trials = 1
-    num_query_trials = 5
+    n_trials = arguments["ntrials"]
+    num_query_trials = 10
     avg_success = {}
     pois_list = arguments["poisonlist"]
     
@@ -178,25 +186,18 @@ if __name__ == '__main__':
             poison_class=1,
             t0=t0,
             t1=t1,
-            variance_adjustment=1.0,
-            middle="median",
             num_queries=1000,
-            pois_random_seed=21,
-            num_target_models=5,
-            ntarget_samples=1500,
-            nsub_samples=1500,
-            allow_subsampling=False,
-            allow_target_subsampling=False,
+            num_target_models=10,
         )
 
         attack_util.set_shadow_model_hyperparameters(
             device=arguments["device"],
             num_workers=1,
-            batch_size=1024,
+            batch_size=256,
             layer_sizes=[32,16],
             verbose=False,
             mini_verbose=False,
-            epochs=15,
+            epochs=20,
             tol=1e-6,
         )
 
@@ -214,8 +215,6 @@ if __name__ == '__main__':
             ) = attack_util.property_inference_categorical(
                 num_shadow_models=arguments["shadowmodels"],
                 query_trials=num_query_trials,
-                query_selection="random",
-                distinguishing_test="median",
             )
 
             avg_success[user_percent] = (
