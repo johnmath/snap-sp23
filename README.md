@@ -10,6 +10,7 @@ python run_attacks.py -dat [--dataset] -tp [--targetproperties] -t0 [--t0frac] -
                       -subcat [--subcategories] -nt [--ntrials]
 
 ```
+
 Each of the arguments can be set to one of the following:
 
 ```shell
@@ -39,7 +40,7 @@ subcategories (string): An array representation of the list of subproperties for
 ntrials (int): The number of experimental trials to run
 ```
 
-An example to run SNAP using the attack script:
+An example to run **SNAP** using the attack script:
 
 ```shell
 python run_attack.py -fsub=False -tp="[(sex, Male)]" -p="[0.015]" -t0=0.3 -t1=0.5
