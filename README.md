@@ -1,6 +1,7 @@
 # SNAP: Efficient Extraction of Private Properties with Poisoning
+# Authors: Harsh Chaudhari, John Abascal, Alina Oprea, Matthew Jagielski, Florian Tramèr, Jonathan Ullman.
 
-Code for the aforementioned paper that will appear at IEEE S&P 2023.  
+Code for our [SNAP: Efficient Extraction of Private Properties with Poisoning](https://arxiv.org/pdf/2208.12348.pdf) paper that will appear at IEEE S&P 2023.  
 
 ## Running the attack
 The following script modifies the training dataset, trains target and shadow models, runs the attack, and prints the results.
@@ -15,7 +16,7 @@ Each of the arguments can be set to one of the following:
 
 ```shell
 dataset (string): "adult" -- Adult dataset
-                  "census" -- Census-Income (KDD) Data Set.
+                  "census" -- Census-Income (KDD) dataset. (Link provided at the end to download the dataset).
 
 targetproperties (string): An array representation of the list of target properties. 
                            e.g. '[(race, White), (sex, Male)]'
@@ -26,7 +27,7 @@ t1frac (float): value between [0, 1] for t1 fraction of target property. (t0 < t
 
 shadowmodels (int): Number of shadow models per fraction.
                      
-poisonlist (string): An array representation of the list of poisoning amounts as decimals.
+poisonlist (string): An array representation of the list of poisoning rates as decimals (between 0 and 1).
                      e.g. '[0.03, 0.05]'
 
 device (string): PyTorch device
@@ -41,18 +42,18 @@ subcategories (string): An array representation of the list of subproperties for
 ntrials (int): The number of experimental trials to run.
 ```
 
-An example to run **SNAP** attack on a **Medium-sized** property :
+An example to run **SNAP** attack on a **medium-sized** property :
 
 ```shell
 python run_attack.py -tp="[(sex, Female),(occupation, Sales)]" -p="[0.006]" -t0=0.01 -t1=0.035
 ```
-An example to run the optimized version of **SNAP** attack on **Large-sized** property:
+An example to run the optimized version of **SNAP** attack on **large-sized** property:
 
 ```shell
 python run_attack.py -fsub=True -tp="[(race, White),(sex, Male)]" -subcat="[(marital-status, Never-married)]" -p="[0.03]" -t0=0.15 -t1=0.30
 ```
 
-An example to run **Property Existence** attack on **Small-sized** property:
+An example to run **Property Existence** attack on **small-sized** property:
 
 ```shell
 python run_attack.py -tp="[(native-country, Germany]" -p="[0.0008]" -t0=0.0 -t1=0.001
