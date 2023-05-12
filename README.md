@@ -41,15 +41,21 @@ subcategories (string): An array representation of the list of subproperties for
 ntrials (int): The number of experimental trials to run.
 ```
 
-An example to run **SNAP** attack on a medium-sized property:
+An example to run **SNAP** attack on a **Medium-sized** property :
 
 ```shell
-python run_attack.py -fsub=False -tp="[(sex, Female),(occupation, Sales)]" -p="[0.006]" -t0=0.01 -t1=0.035
+python run_attack.py -tp="[(sex, Female),(occupation, Sales)]" -p="[0.006]" -t0=0.01 -t1=0.035
 ```
-An example to run the optimized version of **SNAP** attack on large-sized property:
+An example to run the optimized version of **SNAP** attack on **Large-sized** property:
 
 ```shell
-python run_attack.py -fsub=True -tp="[(race, White),(sex, Male)]" -subcat="[(marital-status, Never-married)]" -p="[0.015]" -t0=0.15 -t1=0.30
+python run_attack.py -fsub=True -tp="[(race, White),(sex, Male)]" -subcat="[(marital-status, Never-married)]" -p="[0.03]" -t0=0.15 -t1=0.30
+```
+
+An example to run **Property Existence** attack on **Small-sized** property:
+
+```shell
+python run_attack.py -tp="[(native-country, Germany]" -p="[0.0008]" -t0=0.0 -t1=0.001
 ```
 
 Link to Download Census: https://archive.ics.uci.edu/ml/datasets/Census-Income+(KDD). Download the dataset and place it in the 'dataset' folder.
