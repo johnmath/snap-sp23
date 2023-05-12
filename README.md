@@ -5,8 +5,9 @@ Code for the aforementioned paper that appeared at IEEE S&P 2023.
 ## Running the attack
 The following script modifies the training dataset, trains target and shadow models, runs the attack, and prints the results.
 ```shell
-python run_attacks.py -dat [--dataset] -tp [--targetproperties] -t0 [--t0frac] -t1 [--t1frac] -sm [--shadowmodels] -p [--poisonlist] \
-                      -d [--device] -fsub [--flagsub] -subcat [--subcategories] -nt [--ntrials]
+python run_attacks.py -dat [--dataset] -tp [--targetproperties] -t0 [--t0frac] -t1 [--t1frac] \
+                      -sm [--shadowmodels] -p [--poisonlist] -d [--device] -fsub [--flagsub] \
+                      -subcat [--subcategories] -nt [--ntrials]
 
 ```
 Each of the arguments can be set to one of the following:
