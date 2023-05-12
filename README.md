@@ -13,7 +13,7 @@ Each of the arguments can be set to one of the following:
 
 ```shell
 dataset (string): "adult" -- Adult dataset
-                  "census" -- Census KDD - https://archive.ics.uci.edu/ml/datasets/Census-Income+(KDD).
+                  "census" -- Census-Income (KDD) Data Set.
 
 targetproperties (string): An array representation of the list of target properties. 
                            e.g. '[(race, White), (sex, Male)]'
@@ -44,5 +44,6 @@ An example to run SNAP using the attack script:
 python run_attack.py -fsub=False -tp="[(sex, Male)]" -p="[0.015]" -t0=0.3 -t1=0.5
 ```
 
+Link to Download Census: https://archive.ics.uci.edu/ml/datasets/Census-Income+(KDD)
 
 
