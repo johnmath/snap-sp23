@@ -8,7 +8,7 @@ The following script modifies the training dataset, trains target and shadow mod
 ```shell
 python run_attacks.py -dat [--dataset] -tp [--targetproperties] -t0 [--t0frac] -t1 [--t1frac] \
                       -sm [--shadowmodels] -p [--poisonlist] -d [--device] -fsub [--flagsub] \
-                      -subcat [--subcategories] -nt [--ntrials]
+                      -subcat [--subcategories] -q [--nqueries] -nt [--ntrials]
 
 ```
 
@@ -21,11 +21,11 @@ dataset (string): "adult" -- Adult dataset
 targetproperties (string): An array representation of the list of target properties. 
                            e.g. '[(race, White), (sex, Male)]'
                     
-t0frac (float): value between [0, 1] for t0 fraction of target property
+t0frac (float): value between [0, 1] for t0 fraction of target property.
 
 t1frac (float): value between [0, 1] for t1 fraction of target property. (t0 < t1)
 
-shadowmodels (int): Number of shadow models per fraction.
+shadowmodels (int): Number of shadow models per fraction. Default: 4.
                      
 poisonlist (string): An array representation of the list of poisoning rates as decimals (between 0 and 1).
                      e.g. '[0.03, 0.05]'
@@ -39,7 +39,9 @@ flagsub (bool): If True, runs the optimized version of SNAP that poisons a subpr
 subcategories (string): An array representation of the list of subproperties for the optimized version of SNAP.
                         e.g. '[(marital-status, Never-married)]'
 
-ntrials (int): The number of experimental trials to run.
+nquereis (int): Number of black-box queries made to a target model. Default: 1000.
+
+ntrials (int): The number of experimental trials to run. Default: 1.
 ```
 
 An example to run **SNAP** attack on a **medium-sized** property :

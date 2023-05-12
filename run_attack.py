@@ -122,6 +122,14 @@ if __name__ == '__main__':
     )
     
     parser.add_argument(
+        '-q',
+        '--nqueries',
+        help='number of black-box queries',
+        type=int,
+        default=1000
+    )
+    
+    parser.add_argument(
         '-nt',
         '--ntrials',
         help='number of trials',
@@ -157,6 +165,7 @@ if __name__ == '__main__':
     t1 = arguments["t1frac"]
 
     n_trials = arguments["ntrials"]
+    n_queries = arguments["nqueries"]
     num_query_trials = 10
     avg_success = {}
     pois_list = arguments["poisonlist"]
@@ -186,7 +195,7 @@ if __name__ == '__main__':
             poison_class=1,
             t0=t0,
             t1=t1,
-            num_queries=1000,
+            num_queries=n_queries,
             num_target_models=10,
         )
 
