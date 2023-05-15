@@ -58,7 +58,7 @@ python run_attack.py -fsub=True -tp="[(race, White),(sex, Male)]" -subcat="[(mar
 An example to run **Property Existence** attack on **small-sized** property:
 
 ```shell
-python run_attack.py -tp="[(native-country, Germany]" -p="[0.0008]" -t0=0.0 -t1=0.001
+python run_attack.py -tp="[(native-country, Germany]" -p="[0.0008]" -t0=0.0 -t1=0.001 -q 100
 ```
 
 Link to Download Census: https://archive.ics.uci.edu/ml/datasets/Census-Income+(KDD). Download the dataset and place it in the 'dataset' folder.
