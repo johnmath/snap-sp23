@@ -184,7 +184,6 @@ if __name__ == '__main__':
 
         avg_success[user_percent] = 0.0
         
-        print(arguments["flagsub"])
         attack_util.set_attack_hyperparameters(
             categories=categories,
             target_attributes=target_attributes,
