@@ -8,7 +8,7 @@ from propinf.training import training_utils, models
 
 
 class AttackUtil:
-    def __init__(self, target_model_layers, df_train, df_test, cat_columns=None, verbose=True):
+    def __init__(self, target_model_layers, df_train, df_test, cat_columns=None, verbose=False):
         if verbose:
             message = """Before attempting to run the property inference attack, set hyperparameters using
             1. set_attack_hyperparameters()
@@ -120,7 +120,7 @@ class AttackUtil:
         dropout=False,
         shuffle=True,
         using_ce_loss=True,
-        batch_size=1024,
+        batch_size=256,
         num_workers=8,
         persistent_workers=True,
     ):
@@ -292,7 +292,7 @@ class AttackUtil:
 
         """Trains half the target models on t0 fraction"""
         # for i in tqdm(range(self._num_target_models), desc = "Training target models with frac t0"):
-        for i in tqdm(range(self._num_target_models), desc=f"Training Target Models with {self._poison_percent*100:.2f}% poisoning"):
+        for i in tqdm(range(self._num_target_models), desc=f"Training {self._num_target_models} Target Models per fraction with {self._poison_percent*100:.2f}% poisoning"):
 
             if self._allow_target_subsampling == True:
                 if len(self._Dp) == 0:
@@ -804,69 +804,42 @@ class AttackUtil:
         oversample_flag = False
         if self._num_queries > self._Dtest_OH.shape[0]:
             oversample_flag = True
-            print("Oversampling test queries")
 
         for i, poisoned_target_model in enumerate(tqdm(self._poisoned_target_models, desc=f"Querying Models and Running Distinguishing Test")):
             for query_trial in range(query_trials):
 
-                if query_selection.lower() == "random":
-                    Dtest_OH_sample_loader = training_utils.dataframe_to_dataloader(
-                        self._Dtest_OH.sample(
-                            n=self._num_queries, replace=oversample_flag, random_state = i+1
-                        ),
-                        batch_size=self._batch_size,
-                        num_workers=self._num_workers,
-                        using_ce_loss=self._using_ce_loss,
-                    )
-                else:
-                    print("Incorrect Query selection type")
-
-                out_target = training_utils.get_logits_torch(
+                Dtest_OH_sample_loader = training_utils.dataframe_to_dataloader(
+                    self._Dtest_OH.sample(
+                        n=self._num_queries, replace=oversample_flag, random_state = i+8
+                    ),
+                    batch_size=self._batch_size,
+                    num_workers=self._num_workers,
+                    using_ce_loss=self._using_ce_loss,
+                )
+                
+                out_target = training_utils.get_prediction(
                     Dtest_OH_sample_loader,
                     poisoned_target_model,
-                    device=self._device,
-                    middle_measure=self._middle,
-                    variance_adjustment=self._variance_adjustment,
-                    label = self._poison_class
+                    device=self._device
                 )
 
-                if self._verbose:
-                    print("-" * 10)
-                    print(
-                        f"Target Mean: {out_target.mean():.5}, Variance: {out_target.var():.5}, StDev: {out_target.std():.5}, Median: {np.median(out_target):.5}\n"
+                """ Perform distinguishing test"""
+
+                M0_score = np.sum(out_target == self._poison_class)
+                M1_score = self._num_queries - M0_score
+                
+                
+                if M0_score >= M1_score:
+                    
+                    correct_trials = correct_trials + int(
+                        self._target_worlds[i] == 0
                     )
 
-                """ Perform distinguishing test"""
-                if distinguishing_test == "median":
-                    M0_score = len(out_target[out_target > thresh])
-                    M1_score = len(out_target[out_target < thresh])
-                    if self._verbose:
-                        print(f"M0 Score: {M0_score}\nM1 Score: {M1_score}")
+                elif M0_score < M1_score:
+                   
+                    correct_trials = correct_trials + int(
+                        self._target_worlds[i] == 1
+                    )
 
-                    if M0_score >= M1_score:
-                        if self._mini_verbose:
-                            print(
-                                f"Target is in t0 world with {M0_score/len(out_target)*100:.4}% confidence"
-                            )
-
-                        correct_trials = correct_trials + int(
-                            self._target_worlds[i] == 0
-                        )
-
-                    elif M0_score < M1_score:
-                        if self._mini_verbose:
-                            print(
-                                f"Target is in t1 world {M1_score/len(out_target)*100:.4}% confidence"
-                            )
-
-                        correct_trials = correct_trials + int(
-                            self._target_worlds[i] == 1
-                        )
-
-        if distinguishing_test == "median":
-            return (
-                out_M0,
-                out_M1,
-                thresh,
-                correct_trials / (len(self._target_worlds) * query_trials),
-            )
+        return  correct_trials / (len(self._target_worlds) * query_trials)
+            

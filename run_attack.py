@@ -4,6 +4,7 @@ from tqdm import tqdm
 import warnings 
 warnings.filterwarnings("ignore")
 from propinf.attack.attack_utils import AttackUtil
+from propinf.attack.poison_utils import PoisonUtil
 import propinf.data.ModifiedDatasets as data
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
@@ -90,14 +91,6 @@ if __name__ == '__main__':
     )
     
     parser.add_argument(
-        '-p',
-        '--poisonlist',
-        help='list of poison percent',
-        type=str,
-        default= '[0.03, 0.05]'
-    )
-    
-    parser.add_argument(
         '-d',
         '--device',
         help='PyTorch device',
@@ -138,7 +131,6 @@ if __name__ == '__main__':
     )
     
     arguments = vars(parser.parse_args())
-    arguments["poisonlist"] = string_to_float_list(arguments["poisonlist"])
     arguments["targetproperties"] = string_to_tuple_list(arguments["targetproperties"])
     if arguments["subcategories"]:
         arguments["subcategories"] = string_to_tuple_list(arguments["subcategories"])
@@ -166,21 +158,66 @@ if __name__ == '__main__':
 
     n_trials = arguments["ntrials"]
     n_queries = arguments["nqueries"]
-    num_query_trials = 10
+    num_query_trials = 1
     avg_success = {}
-    pois_list = arguments["poisonlist"]
-    
     
     attack_util = AttackUtil(
     target_model_layers=[32, 16],
     df_train=df_train,
     df_test=df_test,
     cat_columns=cat_columns,
-    verbose=False,
     )
     
+    poison_util = PoisonUtil(
+    df_train=df_train,
+    df_test=df_test,
+    cat_columns=cat_columns,
+    )
+    
+    # avg_success[user_percent] = 0.0
+        
+    poison_util.set_attack_hyperparameters(
+        categories=categories,
+        target_attributes=target_attributes,
+        sub_categories=sub_categories,
+        sub_attributes=sub_attributes,
+        subproperty_sampling=arguments["flagsub"],
+        poison_percent=0,
+        poison_class=1,
+        t0=t0,
+        t1=t1,
+        num_queries=n_queries,
+        num_target_models=10,
+    )
 
-    for pois_idx, user_percent in enumerate(pois_list):
+    poison_util.set_shadow_model_hyperparameters(
+        device=arguments["device"],
+        batch_size=256,
+        layer_sizes=[32,16],
+        epochs=20,
+    )
+    
+    poison_util.generate_datasets()
+    
+    #Computing the sub-category ratio 
+    if(arguments["flagsub"]):
+        category_truth_table = (df_train[categories[0]] == target_attributes[0])
+        for i in range(1, len(categories)):
+            category_truth_table = category_truth_table & (df_train[categories[i]] == target_attributes[i])
+
+        subcat_truth_table = category_truth_table.copy()
+        for i in range(len(sub_categories)):
+            subcat_truth_table = subcat_truth_table & (df_train[sub_categories[i]] == sub_attributes[i])
+            
+        subcat_ratio = sum(subcat_truth_table)/sum(category_truth_table)
+        
+    else:
+        subcat_ratio = 1.0
+    
+    # theoretical_PR = poison_util.compute_poison_rate(num_shadow_models=arguments["shadowmodels"])
+    theoretical_PR = poison_util.compute_poison_rate(num_shadow_models=2, sub_ratio = subcat_ratio)
+    
+    for user_percent in [theoretical_PR]:
 
         avg_success[user_percent] = 0.0
         
@@ -215,12 +252,7 @@ if __name__ == '__main__':
 
             attack_util.train_and_poison_target(need_metrics=False)
 
-            (
-                out_M0,
-                out_M1,
-                threshold,
-                correct_trials,
-            ) = attack_util.property_inference_categorical(
+            correct_trials = attack_util.property_inference_categorical(
                 num_shadow_models=arguments["shadowmodels"],
                 query_trials=num_query_trials,
             )
