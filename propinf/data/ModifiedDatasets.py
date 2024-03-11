@@ -570,10 +570,11 @@ def all_dfs_to_one_hot(dataframes, cat_columns=[], class_label=None):
     # Keys keep track of individual dataframes to
     # split later
     temp = pd.get_dummies(pd.concat(dataframes, keys=keys), columns=cat_columns)
-
+    temp.replace({False: 0, True: 1}, inplace=True)
+    
     # Normalize continuous values
     temp[cont_columns] = temp[cont_columns] / temp[cont_columns].max()
-
+    
     if class_label:
         temp["label"] = temp[class_label]
         temp = temp.drop([class_label], axis=1)
